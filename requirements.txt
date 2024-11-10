@@ -1,9 +1,8 @@
-dash 
+dash
 yfinance
 plotly
 pandas
-plotly
-ta 
+pandas_ta
 gunicorn
-dash_bootstrap_components 
+dash_bootstrap_components
 pip==24.3.1
