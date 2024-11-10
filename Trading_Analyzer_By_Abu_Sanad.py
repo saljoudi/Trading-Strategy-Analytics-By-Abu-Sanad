@@ -3,7 +3,7 @@
 
 # In[4]:
 
-
+import os
 import dash
 from dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
@@ -202,7 +202,7 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", "8050")))
 
 
 # In[ ]:
