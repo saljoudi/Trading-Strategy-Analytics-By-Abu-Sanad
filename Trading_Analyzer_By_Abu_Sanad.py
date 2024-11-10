@@ -116,7 +116,7 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
     # Calculate indicators
     df['SMA_Short'] = df['Close'].rolling(window=sma_short).mean()
     df['SMA_Long'] = df['Close'].rolling(window=sma_long).mean()
-    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
+    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi().values.flatten()
     df['MACD'] = ta.trend.MACD(df['Close']).macd()
     df['MACD_Signal'] = ta.trend.MACD(df['Close']).macd_signal()
     df['ADL'] = ta.volume.AccDistIndexIndicator(df['High'], df['Low'], df['Close'], df['Volume']).acc_dist_index()
