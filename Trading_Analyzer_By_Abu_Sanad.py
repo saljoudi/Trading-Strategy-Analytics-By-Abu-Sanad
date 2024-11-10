@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
-
 import os
 import dash
-from dash import dcc, html, Input, Output
+from dash import dcc, html
 import dash_bootstrap_components as dbc
 import pandas as pd
 import yfinance as yf
 import ta
 import plotly.graph_objs as go
-
 from dash.dependencies import Input, Output, State
-
 
 # Initialize the Dash app with a Bootstrap theme
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
@@ -88,19 +84,18 @@ app.layout = dbc.Container([
     ])
 ], fluid=True)
 
-
 @app.callback(
     [Output('trading-graph', 'figure'),
      Output('summary-output', 'children'),
      Output('trades-table', 'children')],
     [Input('analyze-button', 'n_clicks')],
-    [Input('ticker-input', 'value'),
-     Input('period-input', 'value'),
-     Input('sma-short-input', 'value'),
-     Input('sma-long-input', 'value'),
-     Input('rsi-threshold-input', 'value'),
-     Input('adl-short-input', 'value'),
-     Input('adl-long-input', 'value')]
+    [State('ticker-input', 'value'),
+     State('period-input', 'value'),
+     State('sma-short-input', 'value'),
+     State('sma-long-input', 'value'),
+     State('rsi-threshold-input', 'value'),
+     State('adl-short-input', 'value'),
+     State('adl-long-input', 'value')]
 )
 def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_threshold, adl_short, adl_long):
     # Check if the ticker is numeric (Saudi stock symbol)
@@ -113,24 +108,29 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
     df = yf.download(ticker, period=period)
     df.index = pd.to_datetime(df.index)
 
-    # Calculate indicators
+    # Calculate indicators with 1-dimensional outputs and handle missing data
     df['SMA_Short'] = df['Close'].rolling(window=sma_short).mean()
     df['SMA_Long'] = df['Close'].rolling(window=sma_long).mean()
-    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi().values.reshape(-1)
+    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi().squeeze()
     df['MACD'] = ta.trend.MACD(df['Close']).macd()
     df['MACD_Signal'] = ta.trend.MACD(df['Close']).macd_signal()
     df['ADL'] = ta.volume.AccDistIndexIndicator(df['High'], df['Low'], df['Close'], df['Volume']).acc_dist_index()
     df['ADL_Short_SMA'] = df['ADL'].rolling(window=adl_short).mean()
     df['ADL_Long_SMA'] = df['ADL'].rolling(window=adl_long).mean()
 
-    # Signal generation
+    # Drop rows with NaN values from initial calculations
+    df.dropna(inplace=True)
+
+    # Signal generation logic
     df['Signal'] = df.apply(
-        lambda row: -1 if row['Close'] >= row['SMA_Short'] and row['SMA_Short'] > row['SMA_Long'] and row['ADL_Short_SMA'] > row['ADL_Long_SMA'] and row['RSI'] >= rsi_threshold and row['MACD'] > row['MACD_Signal'] else (
+        lambda row: -1 if row['Close'] >= row['SMA_Short'] and row['SMA_Short'] > row['SMA_Long'] and 
+        row['ADL_Short_SMA'] > row['ADL_Long_SMA'] and row['RSI'] >= rsi_threshold and 
+        row['MACD'] > row['MACD_Signal'] else (
             1 if row['Close'] < row['SMA_Short'] and row['SMA_Short'] < row['SMA_Long'] else 0
         ), axis=1
     )
 
-    # Simulate trading
+    # Trade simulation logic with zero-division check
     initial_investment = 100000
     portfolio = initial_investment
     trades = []
@@ -145,7 +145,7 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
             number_of_trades += 1
         elif row['Signal'] == -1 and buy_price is not None:
             sell_price = row['Close']
-            profit = (sell_price - buy_price) * (portfolio / buy_price)
+            profit = (sell_price - buy_price) * (portfolio / buy_price) if buy_price != 0 else 0
             portfolio += profit
             days_held = (index - trade_start).days
 
@@ -155,14 +155,14 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
                 'Sell Price': f"{sell_price:.2f} SAR",
                 'Days Held': days_held,
                 'Profit': f"{profit:,.2f} SAR",
-                'Profit Percentage': f"{(profit / (portfolio - profit)) * 100:.2f}%"
+                'Profit Percentage': f"{(profit / (portfolio - profit)) * 100:.2f}%" if portfolio - profit != 0 else "0.00%"
             })
 
             buy_price = None
 
     final_value = portfolio
     total_return = final_value - initial_investment
-    percentage_return = (total_return / initial_investment) * 100
+    percentage_return = (total_return / initial_investment) * 100 if initial_investment != 0 else 0
 
     # Create the plot with enhanced visuals
     fig = go.Figure()
@@ -200,13 +200,5 @@ def update_graph(n_clicks, ticker_input, period, sma_short, sma_long, rsi_thresh
 
     return fig, summary_text, trades_table
 
-
 if __name__ == '__main__':
     app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", "8050")))
-
-
-# In[ ]:
-
-
-
-
