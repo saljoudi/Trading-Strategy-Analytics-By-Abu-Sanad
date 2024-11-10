@@ -2,7 +2,7 @@ dash
 yfinance
 plotly
 pandas
-pandas_ta
+pandas_ta==0.3.16b0
 gunicorn
 dash_bootstrap_components
-pip==24.3.1
+numpy<2.0
