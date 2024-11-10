@@ -6,3 +6,4 @@ plotly
 ta 
 gunicorn
 dash_bootstrap_components 
+os
